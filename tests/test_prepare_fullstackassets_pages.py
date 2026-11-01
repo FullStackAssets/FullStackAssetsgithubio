@@ -26,6 +26,11 @@ class PrepareFullstackassetsPagesTests(unittest.TestCase):
         (self.host / "aetheria" / "index.html").write_text("host product, not public\n", encoding="utf-8")
         (self.host / "buildgraph").mkdir()
         (self.host / "buildgraph" / "index.html").write_text("host product, not public\n", encoding="utf-8")
+        (self.host / "margin-checker").mkdir()
+        (self.host / "margin-checker" / "privacy-policy.html").write_text("<p>Privacy policy</p>\n", encoding="utf-8")
+        (self.host / "margin-checker" / "support.html").write_text("<p>Support</p>\n", encoding="utf-8")
+        (self.host / "app-store").mkdir()
+        (self.host / "app-store" / "candidate.js").write_text("not published", encoding="utf-8")
         (self.host / "docs").mkdir()
         (self.host / "docs" / "internal.md").write_text("not public", encoding="utf-8")
 
@@ -106,6 +111,9 @@ class PrepareFullstackassetsPagesTests(unittest.TestCase):
         self.assertTrue((self.output / "index.html").is_file())
         self.assertTrue((self.output / "resume" / "index.html").is_file())
         self.assertTrue((self.output / "services" / "index.html").is_file())
+        self.assertTrue((self.output / "margin-checker" / "privacy-policy.html").is_file())
+        self.assertTrue((self.output / "margin-checker" / "support.html").is_file())
+        self.assertFalse((self.output / "app-store").exists())
         self.assertTrue((self.output / "assets" / "style.css").is_file())
         self.assertEqual((self.output / "CNAME").read_text(encoding="utf-8"), "fullstackassets.com\n")
         self.assertTrue((self.output / ".nojekyll").is_file())
@@ -130,6 +138,12 @@ class PrepareFullstackassetsPagesTests(unittest.TestCase):
         self.assertNotIn('href="/library/"', html)
         sitemap = (self.output / "sitemap.xml").read_text(encoding="utf-8")
         self.assertNotIn("https://fullstackassets.com/library/", sitemap)
+
+    def test_fails_closed_when_legal_page_is_missing(self) -> None:
+        (self.host / "margin-checker" / "privacy-policy.html").unlink()
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required host support file: margin-checker/privacy-policy.html", result.stderr)
 
     def test_fails_closed_when_required_source_path_is_missing(self) -> None:
         (self.source / "sitemap.xml").unlink()
