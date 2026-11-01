@@ -49,6 +49,11 @@ jobs:
         run: npm test
       - name: Generate native iOS project
         run: npx cap add ios
+      - name: Install approved Margin Checker app icon
+        run: |
+          test -f assets/AppIcon-1024.png
+          cp assets/AppIcon-1024.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+          sips -g pixelWidth -g pixelHeight ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
       - name: Verify unsigned iOS simulator build
         run: |
           xcodebuild \
