@@ -42,8 +42,9 @@ test("untrusted recipe names and FDA payload fields render as text nodes", () =>
 test("saved dish preserves cost target and serving estimate", () => {
   assert.match(script, /target:\s*\$\('target'\)\.value/)
   assert.match(script, /servings:\s*\$\('servings'\)\.value/)
-  assert.match(script, /\$\('target'\)\.value\s*=\s*d\.target/)
-  assert.match(script, /\$\('servings'\)\.value\s*=\s*d\.servings/)
+  assert.match(script, /\$\('target'\)\.value\s*=\s*String\(Math\.min/)
+  assert.match(script, /numeric\(d\.target,28\)/)
+  assert.match(script, /\$\('servings'\)\.value\s*=\s*String\(numeric\(d\.servings\)\)/)
 })
 
 test("legal and help URLs are present", () => {
