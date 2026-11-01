@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Margin Checker — Restaurant Dish Calculator</title>
+<meta name="description" content="Restaurant dish margin calculator with a public FDA recall check. No account, no server. Your dishes stay on your device.">
+<style>
+  :root{--bg:#0f1115;--card:#1a1e27;--line:#2a3040;--text:#f2f3f5;--mut:#a8b0c0;--green:#4ade80;--amber:#fbbf24;--red:#f87171;--blue:#60a5fa}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:20px 16px 40px} h1{font-size:26px;margin:4px 0 6px} h2{font-size:18px;margin:22px 0 10px}
+  p{color:var(--mut);line-height:1.5} label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+  input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:#12151d;color:var(--text);font-size:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:520px){.row{grid-template-columns:1fr}}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px} @media(max-width:520px){.stats{grid-template-columns:1fr 1fr}}
+  .stat{background:#12151d;border:1px solid var(--line);border-radius:10px;padding:12px} .stat b{display:block;font-size:20px} .stat span{font-size:12px;color:var(--mut)}
+  button{width:100%;padding:13px;border:0;border-radius:10px;background:#e8c15a;color:#111;font-weight:700;font-size:16px;margin-top:12px;cursor:pointer}
+  button.secondary{background:transparent;color:var(--text);border:1px solid var(--line)} button.danger{background:transparent;color:var(--red);border:1px solid #553333}
+  .good{color:var(--green)} .warn{color:var(--amber)} .bad{color:var(--red)} .small{font-size:13px}
+  .ing{display:grid;grid-template-columns:2fr 1fr 1fr 28px;gap:8px;align-items:center;margin:8px 0} .ing button{margin:0;padding:8px}
+  ul{padding-left:18px} li{margin:8px 0;line-height:1.45} a{color:var(--blue)} .tag{display:inline-block;background:#263043;border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">No account &middot; No server &middot; Dishes stay on this device</span>
+  <h1>Margin Checker</h1>
+  <p>Price a dish, see its real food-cost percentage after waste, and check public FDA recalls for an ingredient. This is a calculator, not vendor pricing and not financial advice.</p>
+
+  <section class="card" aria-label="Dish calculator">
+    <h2 style="margin-top:0">1. Price a dish</h2>
+    <label for="dish">Dish name</label>
+    <input id="dish" placeholder="e.g. Chicken Parm" autocomplete="off">
+    <div class="row">
+      <div><label for="price">Menu price ($)</label><input id="price" type="number" inputmode="decimal" min="0" step="0.01" value="18.00"></div>
+      <div><label for="waste">Waste / trim (%)</label><input id="waste" type="number" inputmode="decimal" min="0" max="90" step="1" value="10"></div>
+    </div>
+    <div class="row">
+      <div><label for="target">Target food-cost (%)</label><input id="target" type="number" inputmode="decimal" min="1" max="90" step="1" value="28"></div>
+      <div><label for="servings">Plates per day (optional)</label><input id="servings" type="number" inputmode="numeric" min="0" step="1" placeholder="e.g. 40"></div>
+    </div>
+
+    <h2>Ingredients — cost per plate</h2>
+    <p class="small">Enter what one plate actually uses. Cost per plate = quantity &times; unit cost. Add rows as needed.</p>
+    <div id="ings"></div>
+    <button class="secondary" id="addIng" type="button">+ Add ingredient</button>
+    <button id="calc" type="button">Calculate margin</button>
+
+    <div class="stats" id="stats" aria-live="polite"></div>
+    <p id="verdict"></p>
+    <p id="targetPrice"></p>
+    <p id="daily"></p>
+    <div class="row">
+      <button class="secondary" id="saveDish" type="button">Save dish on this device</button>
+      <button class="secondary" id="sampleDish" type="button">Load SAMPLE dish</button>
+    </div>
+    <p class="small">SAMPLE dish is an example only — replace it with your own costs before making any pricing decision.</p>
+  </section>
+
+  <section class="card" aria-label="Saved dishes">
+    <h2 style="margin-top:0">Saved dishes (this device only)</h2>
+    <div id="saved"></div>
+    <button class="danger" id="clearSaved" type="button">Clear all saved dishes</button>
+  </section>
+
+  <section class="card" aria-label="FDA recall check">
+    <h2 style="margin-top:0">2. Public recall check</h2>
+    <p><span class="tag">PUBLIC SAFETY ALERT</span> This searches the FDA's public recall database. It is <b>not</b> vendor data, <b>not</b> prices, and <b>not</b> a claim about any supplier. Check the FDA record itself before acting on an alert. Searching sends only your search words to api.fda.gov — no dish, cost, or personal data is sent.</p>
+    <label for="recallQ">Ingredient or product word</label>
+    <input id="recallQ" placeholder="e.g. chicken, romaine, cheese" autocomplete="off">
+    <div class="row">
+      <div><label for="recallState">State (optional, 2 letters)</label><input id="recallState" placeholder="MA" maxlength="2" autocomplete="off"></div>
+      <div><label for="recallClass">Classification (optional)</label>
+        <select id="recallClass"><option value="">Any class</option><option>Class I</option><option>Class II</option><option>Class III</option></select>
+      </div>
+    </div>
+    <button id="recallBtn" type="button">Search FDA recalls</button>
+    <div id="recallOut"></div>
+  </section>
+
+
+  <section class="card" aria-label="More help">
+    <h2 style="margin-top:0">Want a deeper margin review?</h2>
+    <p>This calculator is for one dish at a time. For a full menu, vendor, and leakage review, these are separate products from the same builder:</p>
+    <ul>
+      <li><a href="https://hostgraph-pcc.fullstackassets.com/">HostGraph Procurement Command Center</a> — procurement dashboard and $1,500 purchasing diagnostic (price as listed on that site; verify before buying).</li>
+      <li><a href="https://marginleak.fullstackassets.com/">MarginLeak</a> — review queue for margin leakage, $29/month Solo Operator plan as listed on that site.</li>
+    </ul>
+    <p class="small">Links open the live product sites. This app does not share your dish data with them.</p>
+    <h2>How the math works</h2>
+    <ul>
+      <li>Food cost % = food cost per plate &divide; menu price &times; 100</li>
+      <li>Margin $ = menu price &minus; food cost per plate</li>
+      <li>Waste-adjusted cost = food cost &divide; (1 &minus; waste %)</li>
+      <li>Price for target food-cost % = food cost &divide; target %</li>
+    </ul>
+    <p class="small">Example, checked: $18.00 price, $5.40 food cost, 10% waste &rarr; food cost 30.0%, margin $12.60, waste-adjusted cost $6.00, waste-adjusted food cost 33.3%. Target 28% on $5.40 &rarr; $19.29.</p>
+  </section>
+  <p class="small">Margin Checker v1 is free with no ads or in-app purchases. Native App Store release is pending verification and approval. <a href="https://fullstackassets.com/margin-checker/privacy-policy.html" target="_blank" rel="noopener noreferrer">Privacy</a> · <a href="https://fullstackassets.com/margin-checker/support.html" target="_blank" rel="noopener noreferrer">Support</a>.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const ingsEl = $('ings');
+function money(n){ return '$' + n.toFixed(2); }
+function pct(n){ return n.toFixed(1) + '%'; }
+function addIng(name='', qty='', cost=''){
+  const d = document.createElement('div'); d.className = 'ing';
+  // Static markup only: imported ingredient names never enter HTML source.
+  d.innerHTML = '<input class="iname" placeholder="Ingredient">'
+    + '<input class="iqty" type="number" inputmode="decimal" min="0" step="any" placeholder="Qty">'
+    + '<input class="icost" type="number" inputmode="decimal" min="0" step="any" placeholder="$ / unit">'
+    + '<button class="secondary" type="button" aria-label="Remove ingredient">&times;</button>';
+  d.querySelector('.iname').value = String(name ?? '');
+  d.querySelector('.iqty').value = String(qty ?? '');
+  d.querySelector('.icost').value = String(cost ?? '');
+  d.querySelector('button').onclick = () => { d.remove(); calc(); };
+  ingsEl.appendChild(d);
+  d.querySelectorAll('input').forEach(el => el.addEventListener('input', calc));
+}
+function foodCost(){
+  let total = 0;
+  document.querySelectorAll('.ing').forEach(row => {
+    const q = parseFloat(row.querySelector('.iqty').value) || 0;
+    const c = parseFloat(row.querySelector('.icost').value) || 0;
+    total += q * c;
+  });
+  return total;
+}
+function calc(){
+  const price = parseFloat($('price').value) || 0;
+  const waste = Math.min(90, Math.max(0, parseFloat($('waste').value) || 0)) / 100;
+  const target = Math.min(90, Math.max(1, parseFloat($('target').value) || 28)) / 100;
+  const cost = foodCost();
+  const adj = waste >= 1 ? cost : cost / (1 - waste);
+  const fc = price ? cost / price * 100 : 0;
+  const adjFc = price ? adj / price * 100 : 0;
+  const margin = price - cost;
+  const adjMargin = price - adj;
+  const cls = fc <= 30 ? 'good' : fc <= 35 ? 'warn' : 'bad';
+  $('stats').innerHTML =
+    '<div class="stat"><b>'+money(cost)+'</b><span>Food cost / plate</span></div>'
+    + '<div class="stat"><b class="'+cls+'">'+pct(fc)+'</b><span>Food-cost %</span></div>'
+    + '<div class="stat"><b>'+money(margin)+'</b><span>Margin $ / plate</span></div>'
+    + '<div class="stat"><b>'+money(adj)+'</b><span>Waste-adjusted cost</span></div>'
+    + '<div class="stat"><b>'+pct(adjFc)+'</b><span>Waste-adjusted %</span></div>'
+    + '<div class="stat"><b>'+money(adjMargin)+'</b><span>Waste-adjusted margin</span></div>';
+  $('verdict').innerHTML = price && cost ? 'At <b>'+money(price)+'</b>, this dish keeps <b>'+pct(100-fc)+'</b> before labour, rent, and other overhead. Waste-adjusted, it keeps <b>'+pct(100-adjFc)+'</b>.' : 'Enter a menu price and at least one ingredient cost.';
+  $('targetPrice').textContent = cost ? 'Price for ' + Math.round(target*100) + '% food cost (before waste): ' + money(cost / target) + '. With waste, use ' + money(adj / target) + ' as the waste-adjusted target price.' : '';
+  const plates = parseFloat($('servings').value) || 0;
+  $('daily').textContent = plates && price ? 'At ' + plates + ' plates/day, waste-adjusted daily margin is about ' + money(adjMargin * plates) + ' before other overhead.' : '';
+}
+function getSaved(){
+  try {
+    const raw = JSON.parse(localStorage.getItem('marginCheckerDishes') || '[]');
+    return Array.isArray(raw) ? raw.filter(x => x && typeof x === 'object') : [];
+  } catch(_) { return []; }
+}
+function renderSaved(){
+  const list = getSaved();
+  const root = $('saved');
+  root.replaceChildren();
+  if(!list.length){
+    const p = document.createElement('p'); p.className = 'small';
+    p.textContent = 'No dishes saved yet. Saved dishes never leave this device.';
+    root.appendChild(p);
+  }
+  list.forEach((d, i) => {
+    const card = document.createElement('div'); card.className = 'card'; card.style.margin = '10px 0';
+    const title = document.createElement('b'); title.textContent = String(d.name ?? 'Unnamed dish');
+    const info = document.createElement('span');
+    const price = Number(d.price) || 0, cost = Number(d.cost) || 0, fc = Number(d.fc) || 0;
+    info.textContent = ' — ' + money(price) + ' price, ' + money(cost) + ' cost, ' + pct(fc) + ' food cost';
+    const load = document.createElement('button'); load.className = 'secondary'; load.type = 'button';
+    load.textContent = 'Load';
+    load.addEventListener('click', () => window.loadDish(i));
+    card.append(title, info, load); root.appendChild(card);
+  });
+  window._saved = list;
+}
+window.loadDish = i => {
+  const d = window._saved[i]; if(!d) return;
+  $('dish').value = String(d.name ?? ''); $('price').value = d.price ?? 0; $('waste').value = d.waste ?? 0;
+  $('target').value = d.target ?? 28; $('servings').value = d.servings ?? '';
+  ingsEl.innerHTML = ''; (d.ings || []).forEach(x => addIng(x.name, x.qty, x.cost));
+  if(!(d.ings || []).length) addIng();
+  calc(); window.scrollTo({top:0, behavior:'smooth'});
+};
+$('addIng').onclick = () => addIng();
+$('calc').onclick = calc;
+$('sampleDish').onclick = () => {
+  $('dish').value = 'SAMPLE — Chicken Parm'; $('price').value = '18.00'; $('waste').value = '10'; $('target').value = '28'; $('servings').value = '';
+  ingsEl.innerHTML = ''; addIng('Chicken breast', 0.5, 6.00); addIng('Pasta', 0.25, 0.80); addIng('Marinara', 0.3, 2.00); addIng('Cheese', 0.4, 4.00);
+  // 3.00 + 0.20 + 0.60 + 1.60 = 5.40, matching the worked example below: $18 price, 10% waste.
+  calc();
+};
+$('saveDish').onclick = () => {
+  const list = getSaved();
+  const ings = []; document.querySelectorAll('.ing').forEach(row => ings.push({name: row.querySelector('.iname').value, qty: row.querySelector('.iqty').value, cost: row.querySelector('.icost').value}));
+  const price = parseFloat($('price').value) || 0, cost = foodCost();
+  list.push({name: $('dish').value || 'Unnamed dish', price, waste: $('waste').value, target: $('target').value, servings: $('servings').value, cost, fc: price ? cost/price*100 : 0, ings});
+  localStorage.setItem('marginCheckerDishes', JSON.stringify(list)); renderSaved();
+};
+$('clearSaved').onclick = () => { localStorage.removeItem('marginCheckerDishes'); renderSaved(); };
+$('recallBtn').onclick = async () => {
+  const q = $('recallQ').value.trim(), state = $('recallState').value.trim().toUpperCase(), cls = $('recallClass').value;
+  const out = $('recallOut'); if(!q && !state){ out.innerHTML = '<p>Enter an ingredient word or a state.</p>'; return; }
+  out.innerHTML = '<p>Searching FDA public recalls…</p>';
+  const terms = [];
+  if(q) terms.push('product_description:"' + q.replace(/"/g,'') + '"');
+  if(state) terms.push('state:"' + state + '"');
+  if(cls) terms.push('classification:"' + cls + '"');
+  const url = 'https://api.fda.gov/food/enforcement.json?limit=10' + (terms.length ? '&search=' + encodeURIComponent(terms.join(' AND ')) : '');
+  try {
+    const response = await fetch(url);
+    if(response.status === 404){ out.textContent = 'No matching FDA recalls found for this search.'; return; }
+    if(!response.ok) throw new Error('FDA returned ' + response.status);
+    const data = await response.json();
+    const total = data.meta && data.meta.results ? data.meta.results.total : '?';
+    const items = Array.isArray(data.results) ? data.results : [];
+    out.replaceChildren();
+    const summary = document.createElement('p');
+    summary.textContent = String(total) + ' total matching FDA records; showing ' + items.length + '. Check the FDA record itself before acting.';
+    out.appendChild(summary);
+    if(items.length){
+      const list = document.createElement('ul');
+      items.forEach(x => {
+        const li = document.createElement('li');
+        const classification = document.createElement('b'); classification.textContent = String(x.classification || '');
+        const description = document.createTextNode(' — ' + String(x.product_description || ''));
+        const details = document.createElement('span'); details.className = 'small';
+        details.textContent = 'Firm: ' + String(x.recalling_firm || '—') + ' · ' + String(x.state || '') + ' · ' + String(x.report_date || '') + ' · Reason: ' + String(x.reason_for_recall || '');
+        li.append(classification, description, document.createElement('br'), details);
+        list.appendChild(li);
+      });
+      out.appendChild(list);
+    } else {
+      const p = document.createElement('p'); p.textContent = 'No matches in the first results.'; out.appendChild(p);
+    }
+  } catch(e) {
+    out.textContent = 'Recall search could not load right now (' + String(e.message || e) + '). This does not mean there are no recalls — try again, or check api.fda.gov directly. Your dish data was not sent anywhere.';
+  }
+
+};
+addIng('Chicken breast', 0.5, 6.00); addIng('Pasta', 0.25, 0.80);
+renderSaved(); calc();
+</script>
+</body>
+</html>
