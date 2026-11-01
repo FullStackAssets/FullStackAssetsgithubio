@@ -56,6 +56,7 @@
       <button class="secondary" id="sampleDish" type="button">Load SAMPLE dish</button>
     </div>
     <p class="small">SAMPLE dish is an example only — replace it with your own costs before making any pricing decision.</p>
+    <p class="small" id="saveStatus" aria-live="polite"></p>
   </section>
 
   <section class="card" aria-label="Saved dishes">
@@ -66,7 +67,7 @@
 
   <section class="card" aria-label="FDA recall check">
     <h2 style="margin-top:0">2. Public recall check</h2>
-    <p><span class="tag">PUBLIC SAFETY ALERT</span> This searches the FDA's public recall database. It is <b>not</b> vendor data, <b>not</b> prices, and <b>not</b> a claim about any supplier. Check the FDA record itself before acting on an alert. Searching sends only your search words to api.fda.gov — no dish, cost, or personal data is sent.</p>
+    <p><span class="tag">FDA PUBLIC RECALL SEARCH</span> This is a search of public FDA food enforcement records, which are updated periodically and may be incomplete or delayed. It is <b>not real-time</b>, not vendor pricing, and not a guarantee that a product is safe. Verify details using the <a href="https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts" target="_blank" rel="noopener noreferrer">official FDA recall notices</a>. Search words, state, and classification are sent to api.fda.gov; saved dishes and cost data are not included.</p>
     <label for="recallQ">Ingredient or product word</label>
     <input id="recallQ" placeholder="e.g. chicken, romaine, cheese" autocomplete="off">
     <div class="row">
@@ -83,6 +84,7 @@
   <section class="card" aria-label="More help">
     <h2 style="margin-top:0">Want a deeper margin review?</h2>
     <p>This calculator is for one dish at a time. For a full menu, vendor, and leakage review, these are separate products from the same builder:</p>
+    <p><a href="mailto:Nicholas@fullstackassets.com?subject=Margin%20Checker%20restaurant%20review">Request a restaurant margin review by email</a>. This opens your email app; no saved dish data is attached.</p>
     <ul>
       <li><a href="https://hostgraph-pcc.fullstackassets.com/">HostGraph Procurement Command Center</a> — procurement dashboard and $1,500 purchasing diagnostic (price as listed on that site; verify before buying).</li>
       <li><a href="https://marginleak.fullstackassets.com/">MarginLeak</a> — review queue for margin leakage, $29/month Solo Operator plan as listed on that site.</li>
@@ -97,17 +99,27 @@
     </ul>
     <p class="small">Example, checked: $18.00 price, $5.40 food cost, 10% waste &rarr; food cost 30.0%, margin $12.60, waste-adjusted cost $6.00, waste-adjusted food cost 33.3%. Target 28% on $5.40 &rarr; $19.29.</p>
   </section>
-  <p class="small">Margin Checker v1 is free with no ads or in-app purchases. Native App Store release is pending verification and approval. <a href="https://fullstackassets.com/margin-checker/privacy-policy.html" target="_blank" rel="noopener noreferrer">Privacy</a> · <a href="https://fullstackassets.com/margin-checker/support.html" target="_blank" rel="noopener noreferrer">Support</a>.</p>
+  <p class="small">Margin Checker v1 candidate. Free, no ads, no account, no in-app purchases. Saved dishes remain on this device. <a href="https://fullstackassets.com/margin-checker/privacy-policy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a> · <a href="https://fullstackassets.com/margin-checker/support.html" target="_blank" rel="noopener noreferrer">Support</a>.</p>
 </main>
 <script>
 const $ = id => document.getElementById(id);
 const ingsEl = $('ings');
-function money(n){ return '$' + n.toFixed(2); }
-function pct(n){ return n.toFixed(1) + '%'; }
+function numeric(v, fallback=0){
+  const n = Number.parseFloat(v);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+function money(n){ return Number.isFinite(Number(n)) ? '$' + Number(n).toFixed(2) : '—'; }
+function pct(n){ return Number.isFinite(Number(n)) ? Number(n).toFixed(1) + '%' : '—'; }
+function getSavedDishes(){
+  try {
+    const value = JSON.parse(localStorage.getItem('marginCheckerDishes') || '[]');
+    return Array.isArray(value) ? value.filter(d => d && typeof d === 'object' && !Array.isArray(d)) : [];
+  } catch (_) { return []; }
+}
 function addIng(name='', qty='', cost=''){
   const d = document.createElement('div'); d.className = 'ing';
-  // Static markup only: imported ingredient names never enter HTML source.
-  d.innerHTML = '<input class="iname" placeholder="Ingredient">'
+  // Only static markup goes through innerHTML. Saved user strings are assigned as values.
+  d.innerHTML = '<input class="iname" placeholder="Ingredient" autocomplete="off">'
     + '<input class="iqty" type="number" inputmode="decimal" min="0" step="any" placeholder="Qty">'
     + '<input class="icost" type="number" inputmode="decimal" min="0" step="any" placeholder="$ / unit">'
     + '<button class="secondary" type="button" aria-label="Remove ingredient">&times;</button>';
@@ -121,126 +133,129 @@ function addIng(name='', qty='', cost=''){
 function foodCost(){
   let total = 0;
   document.querySelectorAll('.ing').forEach(row => {
-    const q = parseFloat(row.querySelector('.iqty').value) || 0;
-    const c = parseFloat(row.querySelector('.icost').value) || 0;
+    const q = numeric(row.querySelector('.iqty').value);
+    const c = numeric(row.querySelector('.icost').value);
     total += q * c;
   });
-  return total;
+  return Number.isFinite(total) ? total : 0;
 }
 function calc(){
-  const price = parseFloat($('price').value) || 0;
-  const waste = Math.min(90, Math.max(0, parseFloat($('waste').value) || 0)) / 100;
-  const target = Math.min(90, Math.max(1, parseFloat($('target').value) || 28)) / 100;
+  const price = numeric($('price').value);
+  const waste = Math.min(90, numeric($('waste').value)) / 100;
+  const target = Math.min(90, Math.max(1, numeric($('target').value, 28))) / 100;
   const cost = foodCost();
-  const adj = waste >= 1 ? cost : cost / (1 - waste);
+  const adj = cost / (1 - waste);
   const fc = price ? cost / price * 100 : 0;
   const adjFc = price ? adj / price * 100 : 0;
   const margin = price - cost;
   const adjMargin = price - adj;
   const cls = fc <= 30 ? 'good' : fc <= 35 ? 'warn' : 'bad';
+  // These six values are numerics we compute, never user- or API-provided HTML strings.
   $('stats').innerHTML =
     '<div class="stat"><b>'+money(cost)+'</b><span>Food cost / plate</span></div>'
     + '<div class="stat"><b class="'+cls+'">'+pct(fc)+'</b><span>Food-cost %</span></div>'
-    + '<div class="stat"><b>'+money(margin)+'</b><span>Margin $ / plate</span></div>'
+    + '<div class="stat"><b>'+money(margin)+'</b><span>Gross contribution / plate</span></div>'
     + '<div class="stat"><b>'+money(adj)+'</b><span>Waste-adjusted cost</span></div>'
     + '<div class="stat"><b>'+pct(adjFc)+'</b><span>Waste-adjusted %</span></div>'
-    + '<div class="stat"><b>'+money(adjMargin)+'</b><span>Waste-adjusted margin</span></div>';
-  $('verdict').innerHTML = price && cost ? 'At <b>'+money(price)+'</b>, this dish keeps <b>'+pct(100-fc)+'</b> before labour, rent, and other overhead. Waste-adjusted, it keeps <b>'+pct(100-adjFc)+'</b>.' : 'Enter a menu price and at least one ingredient cost.';
-  $('targetPrice').textContent = cost ? 'Price for ' + Math.round(target*100) + '% food cost (before waste): ' + money(cost / target) + '. With waste, use ' + money(adj / target) + ' as the waste-adjusted target price.' : '';
-  const plates = parseFloat($('servings').value) || 0;
-  $('daily').textContent = plates && price ? 'At ' + plates + ' plates/day, waste-adjusted daily margin is about ' + money(adjMargin * plates) + ' before other overhead.' : '';
-}
-function getSaved(){
-  try {
-    const raw = JSON.parse(localStorage.getItem('marginCheckerDishes') || '[]');
-    return Array.isArray(raw) ? raw.filter(x => x && typeof x === 'object') : [];
-  } catch(_) { return []; }
+    + '<div class="stat"><b>'+money(adjMargin)+'</b><span>Waste-adjusted contribution</span></div>';
+  $('verdict').textContent = price && cost
+    ? `At ${money(price)}, the dish retains ${pct(100-fc)} of its selling price after listed ingredient costs. Waste-adjusted, it retains ${pct(100-adjFc)} before labour, rent, tax, utilities, and other overhead.`
+    : 'Enter a menu price and at least one ingredient cost.';
+  $('targetPrice').textContent = cost ? 'Price for ' + pct(target*100) + ' food cost (before waste): ' + money(cost / target) + '. With waste, use ' + money(adj / target) + ' as the waste-adjusted target price.' : '';
+  const plates = numeric($('servings').value);
+  $('daily').textContent = plates && price ? 'At ' + plates + ' plates/day, waste-adjusted daily gross contribution is approximately ' + money(adjMargin * plates) + ' before other overhead.' : '';
 }
 function renderSaved(){
-  const list = getSaved();
-  const root = $('saved');
-  root.replaceChildren();
+  const list = getSavedDishes();
+  const wrap = $('saved'); wrap.replaceChildren();
   if(!list.length){
-    const p = document.createElement('p'); p.className = 'small';
-    p.textContent = 'No dishes saved yet. Saved dishes never leave this device.';
-    root.appendChild(p);
-  }
-  list.forEach((d, i) => {
-    const card = document.createElement('div'); card.className = 'card'; card.style.margin = '10px 0';
-    const title = document.createElement('b'); title.textContent = String(d.name ?? 'Unnamed dish');
-    const info = document.createElement('span');
-    const price = Number(d.price) || 0, cost = Number(d.cost) || 0, fc = Number(d.fc) || 0;
-    info.textContent = ' — ' + money(price) + ' price, ' + money(cost) + ' cost, ' + pct(fc) + ' food cost';
-    const load = document.createElement('button'); load.className = 'secondary'; load.type = 'button';
-    load.textContent = 'Load';
-    load.addEventListener('click', () => window.loadDish(i));
-    card.append(title, info, load); root.appendChild(card);
+    const p=document.createElement('p'); p.className='small';
+    p.textContent='No dishes saved yet. Saved dishes never leave this device.';
+    wrap.appendChild(p);
+  } else list.forEach((d, i) => {
+    const row=document.createElement('div'); row.className='card'; row.style.margin='10px 0';
+    const name=document.createElement('b'); name.textContent=String(d.name ?? 'Unnamed dish');
+    const summary=document.createTextNode(` — ${money(d.price)} price, ${money(d.cost)} cost, ${pct(d.fc)} food cost`);
+    const button=document.createElement('button'); button.className='secondary'; button.type='button'; button.textContent='Load';
+    button.onclick=()=>window.loadDish(i);
+    row.append(name,summary,button); wrap.appendChild(row);
   });
   window._saved = list;
 }
 window.loadDish = i => {
   const d = window._saved[i]; if(!d) return;
-  $('dish').value = String(d.name ?? ''); $('price').value = d.price ?? 0; $('waste').value = d.waste ?? 0;
-  $('target').value = d.target ?? 28; $('servings').value = d.servings ?? '';
-  ingsEl.innerHTML = ''; (d.ings || []).forEach(x => addIng(x.name, x.qty, x.cost));
-  if(!(d.ings || []).length) addIng();
+  $('dish').value = String(d.name ?? '');
+  $('price').value = String(numeric(d.price));
+  $('waste').value = String(Math.min(90,numeric(d.waste)));
+  $('target').value = String(Math.min(90, Math.max(1,numeric(d.target,28))));
+  $('servings').value = String(numeric(d.servings)) === '0' ? '' : String(numeric(d.servings));
+  ingsEl.replaceChildren();
+  (Array.isArray(d.ings) ? d.ings : []).forEach(x => addIng(x.name, x.qty, x.cost));
+  if(!ingsEl.children.length) addIng();
   calc(); window.scrollTo({top:0, behavior:'smooth'});
 };
 $('addIng').onclick = () => addIng();
 $('calc').onclick = calc;
+$('price').addEventListener('input',calc);
+$('waste').addEventListener('input',calc);
+$('target').addEventListener('input',calc);
+$('servings').addEventListener('input',calc);
 $('sampleDish').onclick = () => {
-  $('dish').value = 'SAMPLE — Chicken Parm'; $('price').value = '18.00'; $('waste').value = '10'; $('target').value = '28'; $('servings').value = '';
-  ingsEl.innerHTML = ''; addIng('Chicken breast', 0.5, 6.00); addIng('Pasta', 0.25, 0.80); addIng('Marinara', 0.3, 2.00); addIng('Cheese', 0.4, 4.00);
-  // 3.00 + 0.20 + 0.60 + 1.60 = 5.40, matching the worked example below: $18 price, 10% waste.
+  $('dish').value = 'SAMPLE — Chicken Parm'; $('price').value = '18.00'; $('waste').value = '10'; $('target').value = '28'; $('servings').value='';
+  ingsEl.replaceChildren(); addIng('Chicken breast', 0.5, 6.00); addIng('Pasta', 0.25, 0.80); addIng('Marinara', 0.3, 2.00); addIng('Cheese', 0.4, 4.00);
   calc();
 };
 $('saveDish').onclick = () => {
-  const list = getSaved();
+  const list = getSavedDishes();
   const ings = []; document.querySelectorAll('.ing').forEach(row => ings.push({name: row.querySelector('.iname').value, qty: row.querySelector('.iqty').value, cost: row.querySelector('.icost').value}));
-  const price = parseFloat($('price').value) || 0, cost = foodCost();
+  const price = numeric($('price').value), cost = foodCost();
   list.push({name: $('dish').value || 'Unnamed dish', price, waste: $('waste').value, target: $('target').value, servings: $('servings').value, cost, fc: price ? cost/price*100 : 0, ings});
-  localStorage.setItem('marginCheckerDishes', JSON.stringify(list)); renderSaved();
+  try { localStorage.setItem('marginCheckerDishes', JSON.stringify(list)); $('saveStatus').textContent='Dish saved on this device.'; renderSaved(); }
+  catch (_) { $('saveStatus').textContent='Could not save. Device storage may be full or unavailable.'; }
 };
-$('clearSaved').onclick = () => { localStorage.removeItem('marginCheckerDishes'); renderSaved(); };
+$('clearSaved').onclick = () => {
+  if(!window.confirm('Delete all saved dishes on this device? This cannot be undone.')) return;
+  try { localStorage.removeItem('marginCheckerDishes'); $('saveStatus').textContent='Saved dishes deleted from this device.'; renderSaved(); }
+  catch (_) { $('saveStatus').textContent='Could not clear saved dishes. Check storage permissions.'; }
+};
 $('recallBtn').onclick = async () => {
   const q = $('recallQ').value.trim(), state = $('recallState').value.trim().toUpperCase(), cls = $('recallClass').value;
-  const out = $('recallOut'); if(!q && !state){ out.innerHTML = '<p>Enter an ingredient word or a state.</p>'; return; }
-  out.innerHTML = '<p>Searching FDA public recalls…</p>';
+  const out = $('recallOut');
+  function showMessage(msg){ const p=document.createElement('p'); p.textContent=msg; out.replaceChildren(p); }
+  if(!q && !state){ showMessage('Enter an ingredient word or a state.'); return; }
+  if(state && !/^[A-Z]{2}$/.test(state)){ showMessage('Use a valid two-letter state code, or leave the state blank.'); return; }
+  showMessage('Searching FDA public recalls…');
   const terms = [];
-  if(q) terms.push('product_description:"' + q.replace(/"/g,'') + '"');
+  if(q) terms.push('product_description:"' + q.replace(/["\\]/g,'') + '"');
   if(state) terms.push('state:"' + state + '"');
   if(cls) terms.push('classification:"' + cls + '"');
   const url = 'https://api.fda.gov/food/enforcement.json?limit=10' + (terms.length ? '&search=' + encodeURIComponent(terms.join(' AND ')) : '');
   try {
-    const response = await fetch(url);
-    if(response.status === 404){ out.textContent = 'No matching FDA recalls found for this search.'; return; }
-    if(!response.ok) throw new Error('FDA returned ' + response.status);
-    const data = await response.json();
-    const total = data.meta && data.meta.results ? data.meta.results.total : '?';
+    const r = await fetch(url);
+    if(r.status === 404){ showMessage('No matching public FDA enforcement records found. This is not proof of product safety.'); return; }
+    if(!r.ok) throw new Error('FDA returned status ' + r.status);
+    const data = await r.json();
+    const total = data.meta && data.meta.results ? data.meta.results.total : 'Unknown';
     const items = Array.isArray(data.results) ? data.results : [];
     out.replaceChildren();
-    const summary = document.createElement('p');
-    summary.textContent = String(total) + ' total matching FDA records; showing ' + items.length + '. Check the FDA record itself before acting.';
-    out.appendChild(summary);
-    if(items.length){
-      const list = document.createElement('ul');
-      items.forEach(x => {
-        const li = document.createElement('li');
-        const classification = document.createElement('b'); classification.textContent = String(x.classification || '');
-        const description = document.createTextNode(' — ' + String(x.product_description || ''));
-        const details = document.createElement('span'); details.className = 'small';
-        details.textContent = 'Firm: ' + String(x.recalling_firm || '—') + ' · ' + String(x.state || '') + ' · ' + String(x.report_date || '') + ' · Reason: ' + String(x.reason_for_recall || '');
-        li.append(classification, description, document.createElement('br'), details);
-        list.appendChild(li);
-      });
-      out.appendChild(list);
-    } else {
-      const p = document.createElement('p'); p.textContent = 'No matches in the first results.'; out.appendChild(p);
-    }
+    const title=document.createElement('p'), strong=document.createElement('b');
+    strong.textContent=String(total)+' matching FDA records';
+    title.append(strong,document.createTextNode('; showing '+items.length+'. Verify the official FDA records before decisions.'));
+    out.appendChild(title);
+    if(!items.length){showMessage('No results in this response.');return;}
+    const ul=document.createElement('ul');
+    items.forEach(x => {
+      const li=document.createElement('li'), b=document.createElement('b'), details=document.createElement('span');
+      b.textContent=String(x.classification || 'Unclassified');
+      const summary=document.createTextNode(' — '+String(x.product_description || 'Description unavailable'));
+      details.className='small';
+      details.textContent='Firm: '+String(x.recalling_firm || '—')+' · '+String(x.state || '')+' · '+String(x.report_date || '')+' · Reason: '+String(x.reason_for_recall || 'Not specified');
+      li.append(b,summary,document.createElement('br'),details); ul.appendChild(li);
+    });
+    out.appendChild(ul);
   } catch(e) {
-    out.textContent = 'Recall search could not load right now (' + String(e.message || e) + '). This does not mean there are no recalls — try again, or check api.fda.gov directly. Your dish data was not sent anywhere.';
+    showMessage('Recall search could not load ('+String(e.message || 'network unavailable')+'). This does not mean no recalls exist. Check the official FDA notices. Saved dish data was not sent.');
   }
-
 };
 addIng('Chicken breast', 0.5, 6.00); addIng('Pasta', 0.25, 0.80);
 renderSaved(); calc();
