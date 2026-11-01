@@ -20,4 +20,4 @@
 8. Create App Store Connect record only when separately authorized; TestFlight and submission are separate release gates.
 
 ## Reconciliation
-The Drive source and scaffold are earlier drafts. This candidate is proposed as the next canonical version **after** device acceptance. Do not silently overwrite Drive or treat the Drive source as already updated.
+The Drive canonical `index.html` and Capacitor `www/index.html` were synchronized on November 1, 2026 with the newer saved-dish, validation and FDA safety improvements retained and hosted legal-page links added. A pre-link backup is in the same Drive folder. This branch mirrors those bytes, and the updated source ZIP is stored in the Margin Checker Drive folder. The unsigned iOS simulator project has compiled successfully with GitHub Actions macOS 26 / Xcode 26.6; final icon installation, signed real-device build, physical iPhone QA and App Store Connect operations are still pending.
