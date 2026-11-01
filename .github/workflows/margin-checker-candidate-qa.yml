@@ -1,0 +1,22 @@
+name: Margin Checker static candidate QA
+
+on:
+  pull_request:
+    paths:
+      - 'app-store/margin-checker/v1-candidate/**'
+      - '.github/workflows/margin-checker-candidate-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source candidate
+        run: node --test app-store/margin-checker/v1-candidate/tests/check-source.mjs
