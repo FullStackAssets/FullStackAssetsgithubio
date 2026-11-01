@@ -1,0 +1,36 @@
+name: Margin Checker v1 source package
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/margin-checker-source-package.yml'
+      - 'app-store/margin-checker/v1-candidate/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact candidate before packaging
+        run: node --test app-store/margin-checker/v1-candidate/tests/check-source.mjs
+      - name: Publish source package (not a signed app)
+        uses: actions/upload-artifact@v4
+        with:
+          name: margin-checker-v1-source-package
+          path: |
+            app-store/margin-checker/v1-candidate/index.html
+            app-store/margin-checker/v1-candidate/www/index.html
+            app-store/margin-checker/v1-candidate/package.json
+            app-store/margin-checker/v1-candidate/assets/AppIcon-1024.png
+            app-store/margin-checker/v1-candidate/capacitor.config.ts
+            app-store/margin-checker/v1-candidate/tests/check-source.mjs
+            app-store/margin-checker/v1-candidate/README.md
+          retention-days: 7
