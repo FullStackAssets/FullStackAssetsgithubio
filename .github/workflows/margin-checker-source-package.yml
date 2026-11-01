@@ -29,6 +29,7 @@ jobs:
             app-store/margin-checker/v1-candidate/index.html
             app-store/margin-checker/v1-candidate/www/index.html
             app-store/margin-checker/v1-candidate/package.json
+            app-store/margin-checker/v1-candidate/assets/AppIcon-1024.png
             app-store/margin-checker/v1-candidate/capacitor.config.ts
             app-store/margin-checker/v1-candidate/tests/check-source.mjs
             app-store/margin-checker/v1-candidate/README.md
