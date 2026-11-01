@@ -1,0 +1,32 @@
+name: Margin Checker live legal URLs
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/margin-checker-live-pages-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Verify privacy policy from public apex
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --max-time 15             'https://fullstackassets.com/margin-checker/privacy-policy.html'             -o privacy.html
+          grep -Fq 'Margin Checker — Privacy Policy' privacy.html
+          grep -Fq 'Effective November 1, 2026' privacy.html
+          echo "Privacy policy: public body verified"
+      - name: Verify support page from public apex
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --max-time 15             'https://fullstackassets.com/margin-checker/support.html'             -o support.html
+          grep -Fq 'Margin Checker — Support' support.html
+          grep -Fq 'Nicholas@fullstackassets.com' support.html
+          echo "Support page: public body verified"
