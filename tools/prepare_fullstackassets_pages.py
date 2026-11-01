@@ -12,6 +12,11 @@ from typing import Iterable
 
 
 DOMAIN = "fullstackassets.com"
+HOST_PUBLIC_SUPPORT_FILES = (
+    "margin-checker/privacy-policy.html",
+    "margin-checker/support.html",
+)
+
 PUBLIC_SOURCE_PATHS = (
     "index.html",
     "assets",
@@ -108,6 +113,7 @@ def _strip_vercel_analytics(output_root: Path) -> None:
 
 def _audit_artifact(output_root: Path) -> None:
     _validate_required_files(output_root, REQUIRED_ARTIFACT_FILES, label="artifact")
+    _validate_required_files(output_root, HOST_PUBLIC_SUPPORT_FILES, label="public support")
     _reject_symlinks(output_root)
 
     cname = (output_root / "CNAME").read_text(encoding="utf-8")
@@ -150,6 +156,7 @@ def prepare_site(host_root: Path, source_root: Path, output_root: Path) -> None:
         raise ArtifactError("output directory must be separate from both repositories")
 
     _validate_required_paths(source_root, PUBLIC_SOURCE_PATHS, label="source")
+    _validate_required_files(host_root, HOST_PUBLIC_SUPPORT_FILES, label="host support")
     _reject_symlinks(source_root)
     _reject_symlinks(host_root)
 
@@ -159,6 +166,10 @@ def prepare_site(host_root: Path, source_root: Path, output_root: Path) -> None:
 
     for relative in PUBLIC_SOURCE_PATHS:
         _copy_path(source_root, output_root, relative)
+
+    # Only publish the two approved legal/support documents, not application source.
+    for relative in HOST_PUBLIC_SUPPORT_FILES:
+        _copy_path(host_root, output_root, relative)
 
     _strip_marketplace_assets(output_root)
 
