@@ -22,7 +22,7 @@ test("inline app JavaScript compiles without syntax errors", () => {
 
 test("v1 has no ads, IAP claims, or account requirement", () => {
   assert.doesNotMatch(html, /Ad space|App Store version \(with ads and a remove-ads unlock\)/i)
-  assert.match(html, /free with no ads or in-app purchases/i)
+  assert.match(html, /Free, no ads, no account, no in-app purchases/i)
   assert.match(html, /No account/i)
 })
 
@@ -31,11 +31,11 @@ test("untrusted recipe names and FDA payload fields render as text nodes", () =>
   assert.match(add, /querySelector\('\.iname'\)\.value\s*=/)
   assert.doesNotMatch(add, /name\.replace/)
   const saved = script.split("function renderSaved()")[1].split("window.loadDish =")[0]
-  assert.match(saved, /title\.textContent/)
-  assert.match(saved, /root\.replaceChildren/)
-  assert.doesNotMatch(saved, /root\.innerHTML/)
+  assert.match(saved, /name\.textContent/)
+  assert.match(saved, /wrap\.replaceChildren/)
+  assert.doesNotMatch(saved, /wrap\.innerHTML/)
   assert.match(script, /details\.textContent/)
-  assert.match(script, /classification\.textContent/)
+  assert.match(script, /b\.textContent/)
   assert.match(script, /out\.replaceChildren/)
 })
 
